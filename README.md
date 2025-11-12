@@ -1,142 +1,174 @@
-CST816 Touch Controller Library
+# CST816 Arduino Touch Controller Library
 
-A simple C++ library for interacting with the CST816 capacitive touch controller, commonly found in smartwatches and other small display devices. This library is designed for Arduino-compatible microcontrollers (like ESP32) and uses a software-based (bit-bang) I2C implementation.
+---
 
-Features
+A **C++ library** for seamless integration with the CST816 capacitive touch controller, widely used in smartwatches and small touch displays. Designed for **Arduino-compatible microcontrollers**, this library provides flexible features and easy setup.
 
-Read X/Y touch coordinates
+---
 
-Detect touch gestures (swipe up, down, left, right, etc.)
+## 📦 Features
 
-Interrupt-driven touch detection via the IRQ pin
+- **Read touch coordinates (X, Y)**
+- **Detect touch gestures**: swipe (up, down, left, right), long press, double click
+- **Interrupt-driven detection**: Use the IRQ pin for instant touch response
+- **Configurable operating modes**: Choose between touch, motion, fast, and other modes
+- **Hardware reset support**
+- **Software (bit-bang) I2C**: Use any GPIO pins—no hardware I2C needed
 
-Configurable operating modes (touch, motion, fast, etc.)
+---
 
-Hardware reset support
-
-Software-based I2C: No hardware I2C peripheral dependency, works on any GPIO pin.
-
-Hardware Requirements
+## 🛠️ Hardware Requirements
 
 To use this library, you need:
 
-A microcontroller (e.g., ESP32, Arduino)
+- **Microcontroller** (e.g., ESP32, Arduino)
+- **CST816 Touch Controller**
+- **4 GPIO pins**:
+  - **SDA** (I2C Data)
+  - **SCL** (I2C Clock)
+  - **IRQ** (Interrupt; highly recommended for best performance)
+  - **RST** (Reset; optional—set to -1 if not used)
 
-A CST816 touch controller
+---
 
-4 GPIO pins for:
+## 🚀 Installation
 
-SDA (I2C Data)
+1. **Download** `CST816.h` and `CST816.cpp`.
+2. **Add both files** to your project folder.
+   - **Arduino IDE**: Place in the same folder as your `.ino` file.
+   - **PlatformIO**: Place in your `lib` or `src` folder.
 
-SCL (I2C Clock)
+---
 
-IRQ (Interrupt - Highly recommended for efficient operation)
+## 🧑‍💻 API Overview
 
-RST (Reset - Optional, can be set to -1 if not used)
-
-Installation
-
-Download the CST816.h and CST816.cpp files.
-
-Add them to your Arduino project folder.
-
-For the Arduino IDE, you can place them in the same directory as your .ino file.
-
-For PlatformIO, you can place them in your project's lib or src directory.
-
-API Reference
-
-Public Methods
-
+### **Constructor**
+```cpp
 CST816(uint8_t sda_pin, uint8_t scl_pin, uint8_t rst_pin, uint8_t irq_pin)
+```
+- Pass GPIO pins. Use `(uint8_t)-1` if RST is not connected.
 
-Constructor. Pass your GPIO pin definitions here. Set rst_pin to (uint8_t)-1 if not used.
-
+### **Touch Setup**
+```cpp
 bool begin(touchpad_mode mode)
+```
+- Initialize pins and chip. Call inside `setup()`.
+- `mode`: Choose how the sensor operates (see below).
 
-Initializes the GPIO pins and the touch chip. Call this in your setup().
-
-mode: The operating mode to start in (see below).
-
+### **Touch Data**
+```cpp
 bool available()
+```
+- Returns `true` if touch data is ready (IRQ pin LOW).
 
-Checks if the IRQ pin is active (LOW), indicating new touch data is ready.
-
+```cpp
 TouchCoordinates getTouch()
+```
+- Returns X/Y positions and number of touch points.
 
-Reads and returns the current touch data (X, Y, points).
-
-Returns a TouchCoordinates struct:
-
+**TouchCoordinates struct:**
+```cpp
 struct TouchCoordinates {
   uint16_t X_Pos;
   uint16_t Y_Pos;
-  uint8_t points; // Number of touch points (0 or 1)
+  uint8_t points; // 0 or 1
 };
+```
 
-
+### **Gesture Detection**
+```cpp
 TouchGesture getGesture()
+```
+- Returns last detected gesture.
 
-Reads and returns the last detected gesture.
-
-Returns a TouchGesture struct:
-
+**TouchGesture struct:**
+```cpp
 struct TouchGesture {
-  uint8_t gesture_id;
+  uint8_t gesture_id;  // See below for IDs
   uint8_t touch_state;
 };
+```
 
+#### **Gesture Identifiers (from CST816.h)**
 
-Known Gesture IDs (defined in CST816.h):
+| Gesture           | ID    |
+|-------------------|-------|
+| None              | 0x00  |
+| Swipe Up          | 0x01  |
+| Swipe Down        | 0x02  |
+| Swipe Left        | 0x03  |
+| Swipe Right       | 0x04  |
+| Long Press        | 0x0B  |
+| Double Click      | 0x0C  |
 
-GESTURE_NONE (0x00)
+### **Other Functions**
 
-GESTURE_SWIPE_UP (0x01)
-
-GESTURE_SWIPE_DOWN (0x02)
-
-GESTURE_SWIPE_LEFT (0x03)
-
-GESTURE_SWIPE_RIGHT (0x04)
-
-GESTURE_LONG_PRESS (0x0B)
-
-GESTURE_DOUBLE_CLICK (0x0C)
-
+```cpp
 void setTouchMode(touchpad_mode mode)
+```
+- Change and re-initialize sensor mode.
 
-Changes the operating mode of the chip (re-initializes).
-
+```cpp
 uint8_t getChipID()
+```
+- Read chip ID (`0xB5` expected for CST816S).
 
-Returns the chip ID (should be 0xB5 for CST816S).
-
+```cpp
 void reset()
+```
+- Perform hardware reset via `RST` pin.
 
-Performs a hardware reset via the RST pin (if connected).
-
+```cpp
 void disableAutoSleep(bool disable)
+```
+- Enable/disable auto-sleep for the controller.
 
-Disables or enables the chip's auto-sleep feature.
-
+```cpp
 bool isTouched()
+```
+- Returns `true` if a touch is detected.
 
-Returns true if the internal state flag indicates a touch.
+---
 
-Operating Modes
+## ⚡ Operating Modes
 
-You can set the chip's behavior using touchpad_mode:
+Set sensor behavior using `touchpad_mode`:
 
-mode_touch: Standard touch detection. Interrupts on touch events.
+- **mode_touch** — Interrupts on touch events (standard)
+- **mode_change** — Interrupts only when coordinates change
+- **mode_fast** — Faster reporting, interrupts on motion
+- **mode_motion** — Optimized for motion/gesture detection
 
-mode_change: Interrupts only when touch coordinates change.
+---
 
-mode_fast: Faster reporting, interrupts on motion.
+## ⚠️ Notes & Tips
 
-mode_motion: Optimized for motion and gesture detection.
+- **Software I2C**: Library uses bit-bang I2C, so you can pick any GPIO pins—hardware I2C not required!
+- **IRQ Pin**: For **instant response** to touch, connect the IRQ pin. This pin signals your microcontroller as soon as a touch or gesture is detected.
 
-Notes
+---
 
-Software I2C: This library uses a "bit-bang" or software I2C implementation. This means it does not use the microcontroller's hardware I2C peripherals (e.g., Wire.h) and can be used on any available GPIO pins.
+## 📚 Example Usage
 
-Interrupt Pin (IRQ): For best performance, you must connect the IRQ pin. This pin signals the microcontroller when a touch event occurs, allowing your code to react instantly instead of constantly polling the chip. Polling with touch.available() in a tight loop is inefficient and not recommended. The correct approach is to use an external interrupt (e.g., attachInterrupt on Arduino/ESP32) triggered by the IRQ pin.
+```cpp
+#include "CST816.h"
+
+CST816 touch(16, 17, -1, 4); // SDA, SCL, RST (unused), IRQ
+
+void setup() {
+  touch.begin(mode_touch);
+}
+
+void loop() {
+  if (touch.available()) {
+    TouchCoordinates pos = touch.getTouch();
+    // Use pos.X_Pos, pos.Y_Pos, pos.points
+  }
+  TouchGesture gesture = touch.getGesture();
+  // Check gesture.gesture_id
+}
+```
+
+---
+
+**Enjoy rapid prototyping and touch interaction on your next Arduino project!**
